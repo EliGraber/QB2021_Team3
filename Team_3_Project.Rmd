@@ -1,0 +1,80 @@
+---
+title: "Team_3_Project"
+output: html_document
+---
+
+```{r}
+rm(list=ls())
+getwd()
+setwd("~/GitHub/QB2021_Team3")
+```
+
+##Original Correlations
+
+
+```{r}
+
+```
+
+## Correlation Coefficients 
+
+
+
+```{r }
+
+`135FoodWebs`$Taxon.ID = as.factor(`135FoodWebs`$Taxon.ID)
+`135FoodWebs`$Ecosystem.Type.ID = as.factor(`135FoodWebs`$Ecosystem.Type.ID)
+
+
+require(dplyr)
+AbS <- `135FoodWebs` %>%
+  group_by(Ecosystem.Type.ID) %>% 
+  summarise(cor(Log.abundance., Soil.pH))
+  summarise(cor(Log.abundance., Soil.pH))
+  
+AbC <- `135FoodWebs` %>%
+  group_by(Ecosystem.Type.ID) %>% 
+  summarise(cor(Log.Abundance., C.tot))
+
+AbT <- `135FoodWebs` %>%
+  group_by(Ecosystem.Type.ID) %>% 
+  summarise(cor(Log.Abundance., Average.T))
+```
+
+##plotting with correlation coefficient lines
+
+```{r}
+if(!require(ggplot2)){install.packages("ggplot2")}
+library(ggplot2)
+
+if(!require(ggpubr)){install.packages("ggpubr")}
+library(ggpubr)
+
+model = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(N.tot), data=`135FoodWebs`)
+summary(model)
+model$coefficients
+exp(model$coefficients)
+plot(`135FoodWebs`$Log.Abundance., `135FoodWebs`$N.tot, col=as.factor(`135FoodWebs`$Ecosystem.Type.ID))
+ggscatter(`135FoodWebs`, x="Log.averageMass..", y="N.tot", color="Ecosystem.Type.ID", add="reg.line")
+
+model = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(Soil.pH), data=`135FoodWebs`)
+summary(model)
+model$coefficients
+exp(model$coefficients)
+ggplot(`135FoodWebs`$Log.Abundance., `135FoodWebs`$Soil.pH, col=as.factor(`135FoodWebs`$Ecosystem.Type.ID))
+ggplot(`135FoodWebs`, x="Log.Abundance", y="Soil.pH", color="Ecosystem.Type.ID", add="reg.line")
+
+model = lm(I(Log.abundance.)~Ecosystem.Type.ID, data=`135FoodWebs`)
+summary(model)
+model$coefficients
+exp(model$coefficients)
+plot(`135FoodWebs`$Log.averageMass., `135FoodWebs`$Soil.pH, col=as.factor(`135FoodWebs`$Ecosystem.Type.ID))
+ggscatter(`135FoodWebs`, x="Log.averageMass.", y="Soil.pH", color="Ecosystem.Type.ID", add="reg.line")
+
+model1 = lm(I(Log.averageMass.)~Ecosystem.Type.ID + I(Mean.rainfall), data=`135FoodWebs`)
+summary(model)
+model1$coefficients
+exp(model$coefficients)
+plot(`135FoodWebs`$Log.averageMass., `135FoodWebs`$Mean.rainfall, col=as.factor(`135FoodWebs`$Ecosystem.Type.ID))
+ggscatter(`135FoodWebs`, x="Log.averageMass.", y="Mean.rainfall", color="Ecosystem.Type.ID", add="reg.line")
+```
