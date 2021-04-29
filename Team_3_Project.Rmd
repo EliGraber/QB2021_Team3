@@ -9,11 +9,68 @@ getwd()
 setwd("~/GitHub/QB2021_Team3")
 ```
 
-##Original Correlations
+> A bunch of packages just in case 
+
+```{r}
+package.list <- c('vegan', 'ade4', 'viridis', 'gplots', 'BiodiversityR', 'indicspecies')
+  for (package in package.list) {
+    if (!require(package, character.only = TRUE, quietly = TRUE)) {
+      install.packages(package)
+      library(package, character.only = TRUE)
+    }
+  }
+package.list <- c('mobsim', 'knitr', 'vegan', 'tidyr', 'dplyr', 'ggplot2', 'formatR')
+for (package in package.list) {
+  if (!require(package, character.only = TRUE, quietly = TRUE)) {
+    install.packages(package)
+    library(package, character.only = TRUE)
+  }
+}
+
+```
+##Original Correlations plus boxplot
 
 
 ```{r}
+library(dplyr)
+library(ggplot2)
 
+foodWebs <- read.table("135FoodWebs.txt", sep = "\t", header = TRUE, row.names = 1)
+dafra <- foodWebs %>% group_by(Ecosystem.Type.ID) %>% summarise(me = mean(exp(Log.Abundance.)))
+
+library(forcats)
+
+foodWebs %>%
+  mutate(Ecosystem.Type.ID = fct_reorder(as.factor(Ecosystem.Type.ID), exp(Log.Abundance.), .fun = 'mean')) %>%
+  ggplot( aes(x = as.factor(Ecosystem.Type.ID), y = exp(Log.Abundance.))) +
+    geom_boxplot() + 
+    xlab("Ecosystem Type ID") +
+    theme(legend.position = "none") +
+    xlab("")
+
+foodWebs %>%
+  mutate(Ecosystem.Type.ID = fct_reorder(as.factor(Ecosystem.Type.ID), Log.averageMass., .fun = 'mean')) %>%
+  ggplot( aes(x = as.factor(Ecosystem.Type.ID), y = Log.averageMass.)) +
+    geom_boxplot() + 
+    xlab("Ecosystem Type ID") +
+    theme(legend.position = "none") +
+    xlab("")
+
+model = lm(I(Log.Abundance.)~as.factor(Ecosystem.Type.ID), data=foodWebs)
+summary(model)
+
+
+foodWebs <- read.table("135FoodWebs.txt", sep = "\t", header = TRUE, row.names = 1)
+
+foodWebs.nums <- foodWebs[,c(6:10, 12:17, 20:22, 24:31, 33)]
+pairs(foodWebs.nums)
+boxplot(Log.Biomass.~Ecosystem.Type.ID, data = foodWebs,  xlab = "Ecosystem Type", ylab = "Log Biomass")
+
+install.packages("corrplot", repos = "http://cran.rstudio.com/%22")
+require("corrplot")
+
+cor1 <- cor(foodWebs.nums)
+corrplot(cor1, method = "ellipse")
 ```
 
 ## Correlation Coefficients 
@@ -22,21 +79,21 @@ setwd("~/GitHub/QB2021_Team3")
 
 ```{r }
 
-`135FoodWebs`$Taxon.ID = as.factor(`135FoodWebs`$Taxon.ID)
-`135FoodWebs`$Ecosystem.Type.ID = as.factor(`135FoodWebs`$Ecosystem.Type.ID)
+foodWebs$Taxon.ID = as.factor(foodWebs$Taxon.ID)
+foodWebs$Ecosystem.Type.ID = as.factor(foodWebs$Ecosystem.Type.ID)
 
 
 require(dplyr)
-AbS <- `135FoodWebs` %>%
+AbS <- foodWebs %>%
   group_by(Ecosystem.Type.ID) %>% 
-  summarise(cor(Log.abundance., Soil.pH))
-  summarise(cor(Log.abundance., Soil.pH))
+  summarise(cor(Log.Abundance., Soil.pH))
+  summarise(cor(Log.Abundance., Soil.pH))
   
-AbC <- `135FoodWebs` %>%
+AbC <- foodWebs %>%
   group_by(Ecosystem.Type.ID) %>% 
   summarise(cor(Log.Abundance., C.tot))
 
-AbT <- `135FoodWebs` %>%
+AbT <- foodWebs %>%
   group_by(Ecosystem.Type.ID) %>% 
   summarise(cor(Log.Abundance., Average.T))
 ```
@@ -50,31 +107,62 @@ library(ggplot2)
 if(!require(ggpubr)){install.packages("ggpubr")}
 library(ggpubr)
 
-model = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(N.tot), data=`135FoodWebs`)
+model = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(N.tot), data=foodWebs)
 summary(model)
 model$coefficients
 exp(model$coefficients)
-plot(`135FoodWebs`$Log.Abundance., `135FoodWebs`$N.tot, col=as.factor(`135FoodWebs`$Ecosystem.Type.ID))
-ggscatter(`135FoodWebs`, x="Log.averageMass..", y="N.tot", color="Ecosystem.Type.ID", add="reg.line")
+plot(foodWebs$Log.Abundance., foodWebs$N.tot, col=as.factor(foodWebs$Ecosystem.Type.ID))
+ggscatter(foodWebs, x="Log.averageMass.", y="N.tot", color="Ecosystem.Type.ID", add="reg.line")
 
-model = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(Soil.pH), data=`135FoodWebs`)
+model = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(Soil.pH), data=foodWebs)
 summary(model)
 model$coefficients
 exp(model$coefficients)
-ggplot(`135FoodWebs`$Log.Abundance., `135FoodWebs`$Soil.pH, col=as.factor(`135FoodWebs`$Ecosystem.Type.ID))
-ggplot(`135FoodWebs`, x="Log.Abundance", y="Soil.pH", color="Ecosystem.Type.ID", add="reg.line")
+ggplot(foodWebs$Log.Abundance., foodWebs$Soil.pH, col=as.factor(foodWebs$Ecosystem.Type.ID))
+ggplot(foodWebs, x="Log.Abundance", y="Soil.pH", color="Ecosystem.Type.ID", add="reg.line")
 
-model = lm(I(Log.abundance.)~Ecosystem.Type.ID, data=`135FoodWebs`)
+model = lm(I(Log.abundance.)~Ecosystem.Type.ID, data=foodWebs)
 summary(model)
 model$coefficients
 exp(model$coefficients)
-plot(`135FoodWebs`$Log.averageMass., `135FoodWebs`$Soil.pH, col=as.factor(`135FoodWebs`$Ecosystem.Type.ID))
-ggscatter(`135FoodWebs`, x="Log.averageMass.", y="Soil.pH", color="Ecosystem.Type.ID", add="reg.line")
+plot(foodWebs$Log.averageMass., foodWebs$Soil.pH, col=as.factor(foodWebs$Ecosystem.Type.ID))
+ggscatter(foodWebs, x="Log.averageMass.", y="Soil.pH", color="Ecosystem.Type.ID", add="reg.line")
 
-model1 = lm(I(Log.averageMass.)~Ecosystem.Type.ID + I(Mean.rainfall), data=`135FoodWebs`)
+model1 = lm(I(Log.averageMass.)~Ecosystem.Type.ID + I(Mean.rainfall), data=foodWebs)
 summary(model)
 model1$coefficients
 exp(model$coefficients)
-plot(`135FoodWebs`$Log.averageMass., `135FoodWebs`$Mean.rainfall, col=as.factor(`135FoodWebs`$Ecosystem.Type.ID))
-ggscatter(`135FoodWebs`, x="Log.averageMass.", y="Mean.rainfall", color="Ecosystem.Type.ID", add="reg.line")
+plot(foodWebs$Log.averageMass., foodWebs$Mean.rainfall, col=as.factor(foodWebs$Ecosystem.Type.ID))
+ggscatter(foodWebs, x="Log.averageMass.", y="Mean.rainfall", color="Ecosystem.Type.ID", add="reg.line")
+```
+
+https://tidyr.tidyverse.org/reference/pivot_wider.html  
+ IDK yet
+```{r}
+foodWebs %>%
+matrix <- pivot_wider(foodWebs, names_from = Genus.Morphon,
+              values_from = Web.ID 
+             )
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+
 ```
