@@ -38,6 +38,8 @@ library(ggplot2)
 foodWebs <- read.table("135FoodWebs.txt", sep = "\t", header = TRUE, row.names = 1)
 dafra <- foodWebs %>% group_by(Ecosystem.Type.ID) %>% summarise(me = mean(exp(Log.Abundance.)))
 
+foodWebs$Taxon.ID = as.factor(foodWebs$Taxon.ID)
+foodWebs$Ecosystem.Type.ID = as.factor(foodWebs$Ecosystem.Type.ID)
 library(forcats)
 
 foodWebs %>%
@@ -87,7 +89,6 @@ require(dplyr)
 AbS <- foodWebs %>%
   group_by(Ecosystem.Type.ID) %>% 
   summarise(cor(Log.Abundance., Soil.pH))
-  summarise(cor(Log.Abundance., Soil.pH))
   
 AbC <- foodWebs %>%
   group_by(Ecosystem.Type.ID) %>% 
@@ -107,42 +108,24 @@ library(ggplot2)
 if(!require(ggpubr)){install.packages("ggpubr")}
 library(ggpubr)
 
-model = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(N.tot), data=foodWebs)
-summary(model)
-model$coefficients
-exp(model$coefficients)
-plot(foodWebs$Log.Abundance., foodWebs$N.tot, col=as.factor(foodWebs$Ecosystem.Type.ID))
-ggscatter(foodWebs, x="Log.averageMass.", y="N.tot", color="Ecosystem.Type.ID", add="reg.line")
-
-model = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(Soil.pH), data=foodWebs)
-summary(model)
-model$coefficients
-exp(model$coefficients)
-ggplot(foodWebs$Log.Abundance., foodWebs$Soil.pH, col=as.factor(foodWebs$Ecosystem.Type.ID))
-ggplot(foodWebs, x="Log.Abundance", y="Soil.pH", color="Ecosystem.Type.ID", add="reg.line")
-
-model = lm(I(Log.abundance.)~Ecosystem.Type.ID, data=foodWebs)
-summary(model)
-model$coefficients
-exp(model$coefficients)
-plot(foodWebs$Log.averageMass., foodWebs$Soil.pH, col=as.factor(foodWebs$Ecosystem.Type.ID))
-ggscatter(foodWebs, x="Log.averageMass.", y="Soil.pH", color="Ecosystem.Type.ID", add="reg.line")
-
-model1 = lm(I(Log.averageMass.)~Ecosystem.Type.ID + I(Mean.rainfall), data=foodWebs)
-summary(model)
-model1$coefficients
-exp(model$coefficients)
-plot(foodWebs$Log.averageMass., foodWebs$Mean.rainfall, col=as.factor(foodWebs$Ecosystem.Type.ID))
-ggscatter(foodWebs, x="Log.averageMass.", y="Mean.rainfall", color="Ecosystem.Type.ID", add="reg.line")
 ```
 
 https://tidyr.tidyverse.org/reference/pivot_wider.html  
- IDK yet
+
 ```{r}
-foodWebs %>%
-matrix <- pivot_wider(foodWebs, names_from = Genus.Morphon,
-              values_from = Web.ID 
+#foodWebs %>%
+  
+newData <- select(foodWebs, Web.ID, Genus.Morphon, Log.Abundance.)
+matrix <- pivot_wider(newData, names_from = Genus.Morphon,
+              values_from = c(Log.Abundance.) , values_fill = 0
              )
+
+matrix.db <- vegdist(matrix, method = "bray", upper = TRUE, diag = TRUE)
+
+order <- rev(attr(matrix.db, "Labels"))
+
+levelplot(as.matrix(matrix.db), aspect = "iso", col.regions = inferno, xlab = NULL, ylab = NULL, scales = list(cex = 0.5), main = "Bray-Curtis Distance", )
+
 ```
 
 
@@ -150,12 +133,304 @@ matrix <- pivot_wider(foodWebs, names_from = Genus.Morphon,
 
 ```{r}
 
+newData$Ecosystem.Type.ID <- foodWebs$Ecosystem.Type.ID
+matrixEco <- pivot_wider(newData, names_from = Genus.Morphon,
+              values_from = c(Log.Abundance.) , values_fill = 0
+             )
+EcoID <- as.factor(matrixEco$Ecosystem.Type.ID)
+
+pcoa <- cmdscale(matrix.db, eig = TRUE, k = 3)
+
+explainvar1 <- round(pcoa$eig[1] / sum(pcoa$eig), 3) * 100
+explainvar2 <- round(pcoa$eig[2] / sum(pcoa$eig), 3) * 100
+explainvar3 <- round(pcoa$eig[3] / sum(pcoa$eig), 3) * 100
+sum.eig <- sum(explainvar1, explainvar2, explainvar3)
+
+par(mar = c(5, 5, 1, 2) + 0.1)
+
+plot(pcoa$points[ ,1], pcoa$points[ ,2], ylim = c(-0.2, 0.7),
+     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = F)
+
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+palette(col.rainbow <- rainbow(7))
+points(pcoa$points[,1], pcoa$points[,2],
+       pch = 19, cex = 3, col=EcoID)
+text(pcoa$points[,1], pcoa$points[, 2],
+     labels = row.names(pcoa$points))
+legend("topright", legend = c(1:7), col = c(rainbow(7)), cex =0.8, lty = 1, lwd = 3)
+
+
 ```
 
 
 
 
 ```{r}
+enviro <- foodWebs[,c(1, 9, 10, 13, 18, 26, 28, 32:33)]
+enviroPivot <- pivot_wider(enviro, names_from = Web.ID)
+
+
+matrix.db <- vegdist(matrix, method = "bray")
+
+
+matrix.dbrda <-dbrda(matrix.db ~ ., as.data.frame(enviroPivot))
+ordiplot(matrix.dbrda)
+matrix.dbrda.mod0 <- dbrda(matrix.db ~ 1, as.data.frame(enviroPivot))
+ordiplot(matrix.dbrda.mod0)
+matrix.dbrda.mod1 <- dbrda(matrix.db ~ ., as.data.frame(enviroPivot))
+matrix.dbrda <- ordiR2step(matrix.dbrda.mod0, matrix.dbrda.mod1, perm.max = 200)
+matrix.dbrda$call
+matrix.dbrda$anova
+ordiplot(matrix.dbrda)
+permutest(matrix.dbrda, permutations = 999)
+envfit(matrix.dbrda, enviroPivot[,], perm = 999)
+matrix.explainvar1 <- round(matrix.dbrda$CCA$eig[1]/
+                            sum(c(matrix.dbrda$CCA$eig, matrix.dbrda$CA$eig)), 3) * 100
+matrix.explainvar2 <- round(matrix.dbrda$CCA$eig[2] /
+                             sum(c(matrix.dbrda$CCA$eig, matrix.dbrda$CA$eig)), 3) *100
+par(mar = c(6, 6, 5, 5) +0.1)
+plot(scores(matrix.dbrda, display = "wa"), xlim = c(-1, 1.5), ylim = c(-2, 2), 
+     xlab = paste("dbRDA 1 (", matrix.explainvar1, "%)", sep = ""), 
+     ylab = paste("dbRDA 2 (", matrix.explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+axis(side = 1, labels = T, lwd.ticks =2, cex.axis = 1.2, las =1)
+axis(side = 2, labels = T, lwd.ticks =2, cex.axis = 1.2, las =1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+points(scores(matrix.dbrda, display = "wa"), pch = 19, cex = 3, bg = "gray", col = "gray")
+text(scores(matrix.dbrda, display = "wa"), labels = NULL)
+
+vectors <- scores(matrix.dbrda, display = "bp")
+
+arrows(0, 0, vectors[,1], vectors[,2], lwd = 2, lty = 1, length = 0.2, col = "red")
+text(vectors[,1], vectors[,2], pos = 3, labels = row.names(vectors))
+axis(side = 3, lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2, at = pretty(range(vectors[,1])) * 2, labels = pretty(range(vectors[,1])))
+axis(side = 4,lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2, at = pretty(range(vectors[,2])) * 2, labels = pretty(range(vectors[,2])))
+```
+
+
+
+
+```{r}
+massData <- select(foodWebs, Web.ID, Genus.Morphon, Log.averageMass.)
+#massData$Log.averageMass. <- exp(massData$Log.averageMass.) #had to exponentiate log average mass because there were negative numbers
+massmatrix <- pivot_wider(massData, names_from = Genus.Morphon,
+              values_from = c(Log.averageMass.) , values_fill = 0
+             )
+
+massmatrix.db <- vegdist(massmatrix, method = "bray", upper = TRUE, diag = TRUE)
+
+EcoID <- as.factor(matrixEco$Ecosystem.Type.ID)
+
+pcoaMass <- cmdscale(massmatrix.db, eig = TRUE, k = 3)
+
+explainvar1 <- round(pcoaMass$eig[1] / sum(pcoaMass$eig), 3) * 100
+explainvar2 <- round(pcoaMass$eig[2] / sum(pcoaMass$eig), 3) * 100
+explainvar3 <- round(pcoaMass$eig[3] / sum(pcoaMass$eig), 3) * 100
+sum.eig <- sum(explainvar1, explainvar2, explainvar3)
+
+par(mar = c(5, 5, 1, 2) + 0.1)
+
+plot(pcoaMass$points[ ,1], pcoaMass$points[ ,2], ylim = c(-0.2, 0.7),
+     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = F)
+
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+palette(col.rainbow <- rainbow(7))
+points(pcoaMass$points[,1], pcoaMass$points[,2],
+       pch = 19, cex = 3, col=EcoID)
+text(pcoaMass$points[,1], pcoaMass$points[, 2],
+     labels = row.names(pcoaMass$points))
+legend("topright", legend = c(1:7), col = c(rainbow(7)), cex =0.8, lty = 1, lwd = 3)
+
+
+order <- rev(attr(massmatrix.db, "Labels"))
+
+levelplot(as.matrix(massmatrix.db), aspect = "iso", col.regions = inferno, xlab = NULL, ylab = NULL, scales = list(cex = 0.5), main = "Bray-Curtis Distance", )
+
+```
+
+constrained ordination 
+
+
+```{r}
+
+enviro <- foodWebs[,c(9, 10, 13, 18, 26, 28, 32)]
+enviroPivot <- pivot_wider(enviro)
+matrix.db <- vegdist(matrix, method = "bray")
+matrix.dbrda <-dbrda(matrix.db ~ ., as.data.frame(enviroPivot))
+ordiplot(matrix.dbrda)
+matrix.dbrda.mod0 <- dbrda(matrix.db ~ 1, as.data.frame(enviroPivot))
+ordiplot(matrix.dbrda.mod0)
+matrix.dbrda.mod1 <- dbrda(matrix.db ~ ., as.data.frame(enviroPivot))
+matrix.dbrda <- ordiR2step(matrix.dbrda.mod0, matrix.dbrda.mod1, perm.max = 200)
+matrix.dbrda$call
+matrix.dbrda$anova
+ordiplot(matrix.dbrda)
+permutest(matrix.dbrda, permutations = 999)
+envfit(matrix.dbrda, enviroPivot[,], perm = 999)
+matrix.explainvar1 <- round(matrix.dbrda$CCA$eig[1]/
+                            sum(c(matrix.dbrda$CCA$eig, matrix.dbrda$CA$eig)), 3) * 100
+matrix.explainvar2 <- round(matrix.dbrda$CCA$eig[2] /
+                             sum(c(matrix.dbrda$CCA$eig, matrix.dbrda$CA$eig)), 3) *100
+par(mar = c(5, 5, 4, 4) +0.1)
+plot(scores(matrix.dbrda, display = "wa"), xlim = c(-1.3, 1.1), ylim = c(-1.1, 2.7), 
+     xlab = paste("dbRDA 1 (", matrix.explainvar1, "%", sep = ""), 
+     ylab = paste("dbRDA 2 (", matrix.explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+axis(side = 1, labels = T, lwd.ticks =2, cex.axis = 1.2, las =1)
+axis(side = 2, labels = T, lwd.ticks =2, cex.axis = 1.2, las =1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+points(scores(matrix.dbrda, display = "wa"), pch = 19, cex = 3, bg = "gray", col = "gray")
+text(scores(matrix.dbrda, display = "wa"), labels = row.names(scores(matrix.dbrda, display = "wa")))
+
+vectors <- scores(matrix.dbrda, display = "bp")
+
+arrows(0, 0, vectors[,1], vectors[,2], lwd = 2, lty = 1, length = 0.2, col = "red")
+text(vectors[,1], vectors[,2], pos = 3, labels = row.names(vectors))
+axis(side = 3, lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2, at = pretty(range(vectors[,1])) * 2, labels = pretty(range(vectors[,1])))
+axis(side = 4,lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2, at = pretty(range(vectors[,2])) * 2, labels = pretty(range(vectors[,2])))
+
+```
+
+
+
+
+```{r}
+model3 = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(Soil.pH), data=foodWebs)
+summary(model3)
+model3$coefficients
+exp(model3$coefficients)
+plot(foodWebs$Log.Abundance., foodWebs$Soil.pH, col=as.factor(foodWebs$Ecosystem.Type.ID))
+ggscatter(foodWebs, x="Log.Abundance.", y="Soil.pH", color="Ecosystem.Type.ID", add="reg.line")
+
+```
+
+
+
+
+```{r}
+AN = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(Total.N.input), data=foodWebs)
+summary(AN)
+AN$coefficients
+exp(AN$coefficients)
+plot(foodWebs$Log.Abundance., foodWebs$Total.N.input, col=as.factor(foodWebs$Ecosystem.Type.ID))
+ggscatter(foodWebs, x="Log.Abundance.", y="Total.N.input", color="Ecosystem.Type.ID", add="reg.line")
+
+```
+
+
+
+```{r}
+AT = lm(I(Log.Abundance.)~Ecosystem.Type.ID + I(Average.T), data=foodWebs)
+summary(AT)
+AT$coefficients
+exp(AT$coefficients)
+plot(foodWebs$Log.Abundance., foodWebs$Average.T, col=as.factor(foodWebs$Ecosystem.Type.ID))
+ggscatter(foodWebs, x="Log.Abundance.", y="Average.T", color="Ecosystem.Type.ID", add="reg.line")
+
+```
+
+
+
+```{r}
+enviro <- foodWebs[,c(9, 10, 13, 18, 26, 28, 32)]
+enviroPivot <- pivot_wider(enviro)
+MassData <- select(foodWebs, Web.ID, Genus.Morphon, Log.averageMass.)
+massmatrix <- pivot_wider(MassData, names_from = Genus.Morphon,
+              values_from = Log.averageMass., values_fill = 0
+             )
+massmatrix.db <- vegdist(massmatrix, method = "bray")
+massmatrix.dbrda <-dbrda(massmatrix.db ~ ., as.data.frame(enviroPivot))
+ordiplot(massmatrix.dbrda)
+massmatrix.dbrda.mod0 <- dbrda(massmatrix.db ~ 1, as.data.frame(enviroPivot))
+ordiplot(massmatrix.dbrda.mod0)
+massmatrix.dbrda.mod1 <- dbrda(massmatrix.db ~ ., as.data.frame(enviroPivot))
+massmatrix.dbrda <- ordiR2step(massmatrix.dbrda.mod0, massmatrix.dbrda.mod1, perm.max = 200)
+massmatrix.dbrda$call
+massmatrix.dbrda$anova
+ordiplot(massmatrix.dbrda)
+permutest(massmatrix.dbrda, permutations = 999)
+envfit(massmatrix.dbrda, enviroPivot[,], perm = 999)
+massmatrix.explainvar1 <- round(massmatrix.dbrda$CCA$eig[1]/
+                            sum(c(massmatrix.dbrda$CCA$eig, massmatrix.dbrda$CA$eig)), 3) * 100
+massmatrix.explainvar2 <- round(massmatrix.dbrda$CCA$eig[2] /
+                             sum(c(massmatrix.dbrda$CCA$eig, massmatrix.dbrda$CA$eig)), 3) *100
+par(mar = c(5, 5, 4, 4) +0.1)
+plot(scores(massmatrix.dbrda, display = "wa"), xlim = c(-1.3, 1.1), ylim = c(-1.1, 2.7), 
+     xlab = paste("dbRDA 1 (", massmatrix.explainvar1, "%", sep = ""), 
+     ylab = paste("dbRDA 2 (", massmatrix.explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, cex.axis = 1.2, axes = FALSE)
+axis(side = 1, labels = T, lwd.ticks =2, cex.axis = 1.2, las =1)
+axis(side = 2, labels = T, lwd.ticks =2, cex.axis = 1.2, las =1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+points(scores(massmatrix.dbrda, display = "wa"), pch = 19, cex = 3, bg = "gray", col = "gray")
+text(scores(massmatrix.dbrda, display = "wa"), labels = row.names(scores(massmatrix.dbrda, display = "wa")))
+
+vectors <- scores(massmatrix.dbrda, display = "bp")
+
+arrows(0, 0, vectors[,1], vectors[,2], lwd = 2, lty = 1, length = 0.2, col = "red")
+text(vectors[,1], vectors[,2], pos = 3, labels = row.names(vectors))
+axis(side = 3, lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2, at = pretty(range(vectors[,1])) * 2, labels = pretty(range(vectors[,1])))
+axis(side = 4,lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2, at = pretty(range(vectors[,2])) * 2, labels = pretty(range(vectors[,2])))
+
+```
+
+
+
+```{r}
+MP = lm(I(Log.averageMass.)~Ecosystem.Type.ID + I(Soil.pH), data=foodWebs)
+summary(MP)
+MP$coefficients
+exp(MP$coefficients)
+plot(foodWebs$Log.averageMass., foodWebs$Soil.pH, col=as.factor(foodWebs$Ecosystem.Type.ID))
+ggscatter(foodWebs, x="Log.averageMass.", y="Soil.pH", color="Ecosystem.Type.ID", add="reg.line")
+
+```
+
+
+
+```{r}
+MN = lm(I(Log.averageMass.)~Ecosystem.Type.ID + I(Total.N.input), data=foodWebs)
+summary(MN)
+MN$coefficients
+exp(MN$coefficients)
+plot(foodWebs$Log.averageMass., foodWebs$Total.N.input, col=as.factor(foodWebs$Ecosystem.Type.ID))
+ggscatter(foodWebs, x="Log.averageMass.", y="Total.N.input", color="Ecosystem.Type.ID", add="reg.line")
+
+```
+
+
+
+
+
+```{r}
+MT = lm(I(Log.averageMass.)~Ecosystem.Type.ID + I(Average.T), data=foodWebs)
+summary(MT)
+MT$coefficients
+exp(MT$coefficients)
+plot(foodWebs$Log.averageMass., foodWebs$Average.T, col=as.factor(foodWebs$Ecosystem.Type.ID))
+ggscatter(foodWebs, x="Log.averageMass.", y="Average.T", color="Ecosystem.Type.ID", add="reg.line")
+
+```
+
+
+
+
+
+```{r}
+
 
 ```
 
